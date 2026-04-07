@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VInnyy — Feel Every Moment Together</title>
+    <meta name="description"
+        content="Watch videos and listen to songs together in perfect sync. Create a room, share the code, and enjoy every moment together.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- ═══ Particle Canvas ═══ -->
+        <canvas id="particles-canvas"></canvas>
+
+        <!-- ═══ Aurora Background ═══ -->
+        <div class="aurora-bg">
+            <div class="aurora-blob blob-1"></div>
+            <div class="aurora-blob blob-2"></div>
+            <div class="aurora-blob blob-3"></div>
+        </div>
+
+        <!-- ═══════════════ LANDING VIEW ═══════════════ -->
+        <div id="landing-view" class="view active">
+            <nav class="navbar">
+                <div class="logo">
+                    <span class="logo-icon">♫</span>
+                    <span class="logo-text">VInnyy</span>
+                </div>
+                <span class="nav-tagline">feel every moment together</span>
+            </nav>
+
+            <section class="hero">
+                <div class="hero-content">
+                    <div class="hero-badge">
+                        <span class="badge-dot"></span>
+                        🎵 Watch & Listen Together
+                    </div>
+                    <h1 class="hero-title">
+                        Every Moment Feels
+                        <br>
+                        <span class="gradient-text">Better Together</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Distance doesn't matter when you're watching the same sunset.
+                        Create a room, share the code, and let the music connect you — in perfect sync.
+                    </p>
+                    <div class="hero-buttons">
+                        <button id="create-room-btn" class="btn-primary">
+                            <span class="btn-icon-left">✦</span>
+                            Create Room
+                        </button>
+                        <button id="join-room-btn" class="btn-secondary">
+                            <span class="btn-icon-left">→</span>
+                            Join Room
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hero-visual">
+                    <div class="floating-el el-note-1">♪</div>
+                    <div class="floating-el el-note-2">♫</div>
+                    <div class="floating-el el-heart-1">🧡</div>
+                    <div class="floating-el el-star-1">✦</div>
+                    <div class="floating-el el-note-3">♪</div>
+                    <div class="floating-el el-heart-2">💜</div>
+                    <div class="hero-ring ring-1"></div>
+                    <div class="hero-ring ring-2"></div>
+                    <div class="hero-ring ring-3"></div>
+                </div>
+            </section>
+
+            <section class="features" id="features">
+                <h2 class="section-title">How It <span class="gradient-text">Works</span></h2>
+                <div class="features-grid">
+                    <div class="feature-card glass">
+                        <div class="feature-icon">🎬</div>
+                        <h3>Create a Room</h3>
+                        <p>Get a unique room code in one click. Your private space awaits.</p>
+                    </div>
+                    <div class="feature-card glass">
+                        <div class="feature-icon">📤</div>
+                        <h3>Share the Code</h3>
+                        <p>Send the code to your special person. That's all it takes to connect.</p>
+                    </div>
+                    <div class="feature-card glass">
+                        <div class="feature-icon">🎵</div>
+                        <h3>Feel Together</h3>
+                        <p>Videos and songs play in perfect sync. Chat, react, and share the moment.</p>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="footer">
+                <p>Made For 🧡 — Vinnyy</p>
+            </footer>
+        </div>
+
+        <!-- ═══════════════ MODAL OVERLAY ═══════════════ -->
+        <div id="modal-overlay" class="modal-overlay">
+            <div class="modal glass">
+                <button id="modal-close" class="modal-close-btn">✕</button>
+
+                <!-- Create Room Content -->
+                <div id="create-room-content" class="modal-content" style="display:none;">
+                    <div class="modal-icon">✦</div>
+                    <h2>Create Your Room</h2>
+                    <p class="modal-desc">Share this code with your person</p>
+                    <div class="room-code-display">
+                        <span id="generated-code" class="room-code-text"></span>
+                        <button id="copy-code-btn" class="copy-btn" title="Copy code">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                            </svg>
+                        </button>
+                    </div>
+                    <input id="create-username" class="input" type="text" placeholder="Your name" maxlength="20"
+                        autocomplete="off">
+                    <button id="create-confirm" class="btn-primary btn-full">
+                        <span class="btn-icon-left">🚀</span> Enter Room
+                    </button>
+                </div>
+
+                <!-- Join Room Content -->
+                <div id="join-room-content" class="modal-content" style="display:none;">
+                    <div class="modal-icon">→</div>
+                    <h2>Join a Room</h2>
+                    <p class="modal-desc">Enter the room code to connect</p>
+                    <input id="join-room-code" class="input" type="text" placeholder="Room code" maxlength="6"
+                        autocomplete="off"
+                        style="text-transform:uppercase; letter-spacing:4px; text-align:center; font-weight:700;">
+                    <input id="join-username" class="input" type="text" placeholder="Your name" maxlength="20"
+                        autocomplete="off">
+                    <button id="join-confirm" class="btn-primary btn-full">
+                        <span class="btn-icon-left">✨</span> Join Room
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════ WATCH VIEW ═══════════════ -->
+        <div id="watch-view" class="view">
+            <header class="watch-header glass">
+                <div class="header-left">
+                    <div class="logo logo-sm">
+                        <span class="logo-icon">♫</span>
+                        <span class="logo-text">VInnyy</span>
+                    </div>
+                    <div class="room-code-badge glass" id="room-badge">
+                        <span class="badge-label">ROOM</span>
+                        <span class="badge-code" id="display-room-code"></span>
+                    </div>
+                </div>
+                <div class="header-center">
+                    <div class="connection-status" id="connection-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Connecting...</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="users-online" id="users-online">
+                        <span class="online-dot"></span>
+                        <span class="online-count">1</span>
+                    </div>
+                    <button id="leave-btn" class="btn-ghost">Leave</button>
+                </div>
+            </header>
+
+            <main class="watch-main">
+                <div class="player-area">
+                    <div class="player-wrapper" id="player-wrapper">
+                        <div id="youtube-player"></div>
+                        <div class="player-placeholder" id="player-placeholder">
+                            <div class="placeholder-icon">🎵</div>
+                            <p>Search for a song or video below to start watching together</p>
+                        </div>
+                    </div>
+
+                    <div class="now-playing-bar glass" id="now-playing-bar" style="display:none;">
+                        <div class="visualizer" id="visualizer">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <span class="np-label">Now Playing</span>
+                        <span class="np-title" id="np-title">—</span>
+                        <div class="reactions-bar-inline">
+                            <button class="reaction-btn-sm" data-emoji="❤️">❤️</button>
+                            <button class="reaction-btn-sm" data-emoji="🔥">🔥</button>
+                            <button class="reaction-btn-sm" data-emoji="✨">✨</button>
+                            <button class="reaction-btn-sm" data-emoji="😍">😍</button>
+                            <button class="reaction-btn-sm" data-emoji="🎵">🎵</button>
+                            <button class="reaction-btn-sm" data-emoji="🥰">🥰</button>
+                            <button class="reaction-btn-sm" data-emoji="💜">💜</button>
+                        </div>
+                    </div>
+
+                    <!-- ═══ Search Section ═══ -->
+                    <div class="search-section glass">
+                        <div class="search-input-wrap">
+                            <span class="search-icon">🔍</span>
+                            <input id="search-input" class="input search-input" type="text"
+                                placeholder="Search songs, videos, artists..." autocomplete="off">
+                            <div class="search-spinner" id="search-spinner" style="display:none;"></div>
+                        </div>
+
+                        <!-- Quick Mood Tags -->
+                        <div class="mood-tags" id="mood-tags">
+                            <button class="mood-tag" data-query="romantic love songs">💕 Romantic</button>
+                            <button class="mood-tag" data-query="chill lofi beats">🌙 Chill</button>
+                            <button class="mood-tag" data-query="trending hindi songs 2026">🔥 Trending</button>
+                            <button class="mood-tag" data-query="telugu hit songs">🎶 Telugu Hits</button>
+                            <button class="mood-tag" data-query="bollywood party songs">🎉 Party</button>
+                            <button class="mood-tag" data-query="sad emotional songs hindi">😢 Sad</button>
+                            <button class="mood-tag" data-query="english pop hits 2026">🌍 English Pop</button>
+                            <button class="mood-tag" data-query="study music focus">📚 Study</button>
+                        </div>
+
+                        <!-- Search Results -->
+                        <div class="search-results" id="search-results" style="display:none;">
+                            <div class="search-results-header">
+                                <span class="results-count" id="results-count"></span>
+                                <button class="btn-ghost btn-sm" id="close-search-results">✕ Close</button>
+                            </div>
+                            <div class="search-results-grid" id="search-results-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- URL Paste (collapsed/secondary) -->
+                    <details class="url-paste-toggle">
+                        <summary class="url-paste-summary">📎 Or paste a YouTube URL directly</summary>
+                        <div class="url-input-area">
+                            <input id="video-url" class="input" type="text" placeholder="Paste YouTube URL..."
+                                autocomplete="off">
+                            <button id="load-video-btn" class="btn-primary btn-compact">
+                                <span>▶</span> Play
+                            </button>
+                            <button id="add-queue-btn" class="btn-secondary btn-compact" title="Add to queue">
+                                + Queue
+                            </button>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="sidebar">
+                    <div class="sidebar-tabs">
+                        <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+                        <button class="tab-btn" data-tab="queue">📋 Queue <span class="queue-badge" id="queue-badge"
+                                style="display:none;">0</span></button>
+                    </div>
+
+                    <!-- Chat Panel -->
+                    <div class="chat-area" id="chat-panel">
+                        <div class="chat-messages" id="chat-messages"></div>
+                        <div class="chat-typing" id="chat-typing" style="display:none;">
+                            <span class="typing-name" id="typing-name"></span> is typing
+                            <div class="typing-dots"><span></span><span></span><span></span></div>
+                        </div>
+                        <div class="chat-input-area">
+                            <input id="chat-input" class="input" type="text" placeholder="Say something..."
+                                autocomplete="off" maxlength="500">
+                            <button id="chat-send" class="btn-send">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Queue Panel -->
+                    <div class="queue-area" id="queue-panel" style="display:none;">
+                        <div class="queue-list" id="queue-list">
+                            <div class="queue-empty" id="queue-empty">
+                                <span>📋</span>
+                                <p>Queue is empty</p>
+                                <p class="queue-hint">Paste a URL and click "+ Queue" to add</p>
+                            </div>
+                        </div>
+                        <button id="play-next-btn" class="btn-primary btn-full" style="display:none;">
+                            ⏭ Play Next
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- ═══ Floating Reactions Container ═══ -->
+        <div id="reactions-container"></div>
+
+        <!-- ═══ Toast Notifications ═══ -->
+        <div id="toast-container"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+
+</html>
