@@ -1,0 +1,27 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render free tier from sleeping
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Service
+        run: |
+          echo "🏓 Pinging VInnyy to keep it alive..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://vinnyyluu.onrender.com/)
+          echo "Response code: $response"
+          if [ "$response" -eq 200 ] || [ "$response" -eq 304 ]; then
+            echo "✅ VInnyy is alive and responding!"
+          else
+            echo "⚠️ VInnyy responded with code: $response"
+          fi
+
+      - name: Ping Health Check (if available)
+        run: |
+          curl -s https://vinnyyluu.onrender.com/ > /dev/null 2>&1 || true
+          echo "✅ Keep-alive ping completed at $(date -u)"
