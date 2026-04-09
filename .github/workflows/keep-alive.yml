@@ -2,8 +2,8 @@ name: Keep Render Alive
 
 on:
   schedule:
-    # Runs every 14 minutes to prevent Render free tier from sleeping
-    - cron: '*/14 * * * *'
+    # Runs once daily at 6:00 AM UTC (11:30 AM IST)
+    - cron: '0 6 * * *'
   workflow_dispatch: # Allow manual trigger from GitHub Actions tab
 
 jobs:
