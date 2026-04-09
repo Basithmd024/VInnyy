@@ -920,6 +920,61 @@ h1, h2, h3 { font-family: var(--font-heading); font-weight: 700; line-height: 1.
 
 #play-next-btn { margin: 12px; }
 
+/* ══════════════════ FOLDERS PANEL ══════════════════ */
+.folders-area {
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+    background: none; border: none; border-radius: 0;
+}
+
+.folders-header {
+    padding: 12px; border-bottom: 1px solid var(--glass-border);
+}
+
+.folders-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+.folders-empty {
+    text-align: center; padding: 40px 20px; color: var(--text-muted);
+}
+.folders-empty span { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: 0.3; }
+.folders-empty p { font-size: 0.9rem; }
+.folders-hint { font-size: 0.8rem !important; margin-top: 8px; }
+
+.folder-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer; transition: var(--transition);
+    animation: fadeInUp 0.3s ease;
+}
+.folder-item:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.2); }
+
+.folder-info { flex: 1; min-width: 0; }
+.folder-name { font-size: 0.9rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-count { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+.folder-queue-btn {
+    background: linear-gradient(135deg, var(--purple-500), var(--pink-500));
+    border: none; color: white;
+    padding: 6px 12px; border-radius: 6px;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    transition: var(--transition); flex-shrink: 0; margin-left: 8px;
+}
+.folder-queue-btn:hover { box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
+
+.song-preview {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 6px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+    animation: fadeInUp 0.3s ease;
+}
+.song-preview:hover { background: rgba(139,92,246,0.08); }
+
+.folder-song-queue-btn {
+    background: rgba(139,92,246,0.2); border: none; color: var(--purple-300);
+    cursor: pointer; border-radius: 4px; transition: var(--transition); flex-shrink: 0;
+}
+.folder-song-queue-btn:hover { background: rgba(139,92,246,0.4); color: white; }
+
 /* ══════════════════ REACTIONS CONTAINER ══════════════════ */
 #reactions-container {
     position: fixed; bottom: 100px; left: 50%;
@@ -985,3 +1040,351 @@ h1, h2, h3 { font-family: var(--font-heading); font-weight: 700; line-height: 1.
     .mood-tag { font-size: 0.72rem; padding: 5px 10px; }
 }
 
+
+/* ══════════════════ VIDEO CALL BUTTON ══════════════════ */
+.btn-videocall {
+    background: linear-gradient(135deg, rgba(52,211,153,0.2), rgba(96,165,250,0.2));
+    border: 1px solid rgba(52,211,153,0.3);
+    color: var(--text-primary); padding: 8px 14px;
+    border-radius: var(--radius-md); font-size: 1rem;
+    cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; gap: 6px;
+}
+.btn-videocall:hover {
+    background: linear-gradient(135deg, rgba(52,211,153,0.35), rgba(96,165,250,0.35));
+    border-color: rgba(52,211,153,0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(52,211,153,0.3);
+}
+.btn-videocall.active {
+    background: linear-gradient(135deg, rgba(52,211,153,0.4), rgba(96,165,250,0.4));
+    border-color: #34d399;
+    box-shadow: 0 0 15px rgba(52,211,153,0.4);
+    animation: glow-pulse 2s infinite;
+}
+.videocall-icon { font-size: 1.1rem; }
+
+/* ══════════════════ VIDEO CALL PANEL ══════════════════ */
+.videocall-panel {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    width: 340px;
+    z-index: 900;
+    border-radius: var(--radius-xl);
+    background: rgba(12,10,29,0.92);
+    backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(52,211,153,0.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(52,211,153,0.1);
+    overflow: hidden;
+    animation: videocall-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: width 0.35s cubic-bezier(0.25,1,0.5,1), height 0.35s cubic-bezier(0.25,1,0.5,1);
+}
+
+@keyframes videocall-slide-in {
+    from { opacity: 0; transform: translateY(40px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes videocall-slide-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(40px) scale(0.9); }
+}
+.videocall-panel.closing {
+    animation: videocall-slide-out 0.3s ease forwards;
+}
+
+.videocall-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(52,211,153,0.08);
+    border-bottom: 1px solid rgba(52,211,153,0.15);
+    cursor: grab; user-select: none;
+}
+.videocall-header:active { cursor: grabbing; }
+
+.videocall-title {
+    font-family: var(--font-heading);
+    font-weight: 700; font-size: 0.9rem;
+    color: #34d399;
+}
+
+.videocall-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; color: var(--text-muted);
+}
+.vc-status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--amber-500);
+    animation: glow-pulse 2s infinite;
+}
+.videocall-status.connected .vc-status-dot { background: #34d399; }
+.videocall-status.connected .vc-status-text { color: #34d399; }
+
+/* ── Video Area ── */
+.videocall-videos {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #0a0a14;
+    overflow: hidden;
+}
+
+.remote-video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #0a0a14;
+}
+
+.remote-placeholder {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 0.9rem;
+    background: linear-gradient(135deg, rgba(12,10,29,0.9), rgba(21,15,45,0.9));
+}
+.remote-placeholder span {
+    padding: 10px 20px;
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: var(--radius-md);
+    font-style: italic;
+}
+
+.local-video {
+    position: absolute;
+    bottom: 12px; right: 12px;
+    width: 100px; height: 75px;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    border: 2px solid rgba(52,211,153,0.4);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    z-index: 2;
+    transition: var(--transition);
+    background: #0a0a14;
+}
+.local-video:hover {
+    transform: scale(1.08);
+    border-color: #34d399;
+}
+
+/* ── Controls Bar ── */
+.videocall-controls {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; padding: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.vc-control-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; justify-content: center;
+}
+.vc-control-btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.3);
+    transform: scale(1.08);
+}
+.vc-control-btn.muted {
+    background: rgba(248,113,113,0.2);
+    border-color: rgba(248,113,113,0.4);
+    color: #f87171;
+}
+
+.vc-hangup-btn {
+    background: rgba(239,68,68,0.2) !important;
+    border-color: rgba(239,68,68,0.4) !important;
+    color: #ef4444 !important;
+    font-weight: 700; font-size: 1rem;
+}
+.vc-hangup-btn:hover {
+    background: rgba(239,68,68,0.4) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 4px 20px rgba(239,68,68,0.3);
+    transform: scale(1.1);
+}
+
+/* ── Video Call Responsive ── */
+@media (max-width: 768px) {
+    .videocall-panel {
+        bottom: 12px; right: 12px;
+        width: 180px;
+        left: auto !important;
+        top: auto !important;
+    }
+    /* Size presets for mobile */
+    .videocall-panel.vc-size-small {
+        width: 140px;
+    }
+    .videocall-panel.vc-size-medium {
+        width: 200px;
+    }
+    .videocall-panel.vc-size-large {
+        width: 280px;
+    }
+    .videocall-panel.vc-size-full {
+        width: calc(100vw - 24px);
+        left: 12px !important;
+        right: 12px;
+    }
+    .videocall-videos {
+        aspect-ratio: 1/1;
+    }
+    .videocall-panel.vc-size-large .videocall-videos,
+    .videocall-panel.vc-size-full .videocall-videos {
+        aspect-ratio: 4/3;
+    }
+    .local-video {
+        width: 60px; height: 45px;
+        bottom: 6px; right: 6px;
+    }
+    .videocall-panel.vc-size-large .local-video,
+    .videocall-panel.vc-size-full .local-video {
+        width: 90px; height: 68px;
+        bottom: 8px; right: 8px;
+    }
+    .videocall-header {
+        padding: 8px 10px;
+    }
+    .videocall-title {
+        font-size: 0.75rem;
+    }
+    .vc-timer {
+        font-size: 0.65rem;
+        padding: 1px 6px;
+    }
+    .videocall-controls {
+        gap: 8px; padding: 8px;
+    }
+    .vc-control-btn {
+        width: 34px; height: 34px;
+        font-size: 0.9rem;
+    }
+    .videocall-panel.vc-size-small .videocall-controls {
+        gap: 4px; padding: 6px;
+    }
+    .videocall-panel.vc-size-small .vc-control-btn {
+        width: 28px; height: 28px;
+        font-size: 0.75rem;
+    }
+    .videocall-panel.vc-size-small .videocall-title { font-size: 0.65rem; }
+    .videocall-panel.vc-size-small .vc-timer { display: none; }
+    .videocall-panel.vc-size-small .videocall-status { display: none; }
+    /* Hide resize handle on mobile since we use presets */
+    .vc-resize-handle { display: none !important; }
+}
+
+@media (max-width: 480px) {
+    .videocall-panel {
+        width: 160px;
+    }
+    .videocall-panel.vc-size-small {
+        width: 120px;
+    }
+    .videocall-panel.vc-size-medium {
+        width: 180px;
+    }
+    .videocall-panel.vc-size-large {
+        width: 250px;
+    }
+}
+
+/* ══════════════════ VIDEO PANEL UPGRADES ══════════════════ */
+
+/* Header layout */
+.vc-header-left, .vc-header-right {
+    display: flex; align-items: center; gap: 8px;
+}
+
+/* Call Timer */
+.vc-timer {
+    font-family: 'Outfit', monospace;
+    font-size: 0.75rem; font-weight: 600;
+    color: rgba(52,211,153,0.7);
+    background: rgba(52,211,153,0.1);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    letter-spacing: 1px;
+}
+
+/* Minimize Button */
+.vc-minimize-btn {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: var(--text-secondary);
+    font-size: 0.8rem; font-weight: 700;
+    cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+}
+.vc-minimize-btn:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+    color: white;
+}
+
+/* Size Toggle Button */
+.vc-size-btn {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    border: 1px solid rgba(52,211,153,0.2);
+    background: rgba(52,211,153,0.08);
+    color: #34d399;
+    font-size: 0.7rem; font-weight: 700;
+    cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+    font-family: var(--font-heading);
+}
+.vc-size-btn:hover {
+    background: rgba(52,211,153,0.2);
+    border-color: rgba(52,211,153,0.4);
+}
+.vc-size-btn:active {
+    transform: scale(0.9);
+}
+@media (min-width: 769px) {
+    .vc-size-btn { display: none; }
+}
+
+/* Minimized State */
+.videocall-panel.minimized {
+    width: 200px !important;
+    border-radius: var(--radius-lg);
+}
+.videocall-panel.minimized .videocall-header {
+    border-bottom: none;
+}
+
+/* Video Body wrapper */
+.videocall-body {
+    display: block;
+}
+
+/* Resize Handle */
+.vc-resize-handle {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 18px; height: 18px;
+    cursor: se-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.15) 50%);
+    border-radius: 0 0 var(--radius-xl) 0;
+    opacity: 0; transition: opacity 0.2s;
+}
+.videocall-panel:hover .vc-resize-handle {
+    opacity: 1;
+}
+
+/* Panel hover glow */
+.videocall-panel:hover {
+    border-color: rgba(52,211,153,0.35);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 50px rgba(52,211,153,0.15);
+}
+
+/* Smooth drag cursor */
+.videocall-header { cursor: grab; }
+.videocall-header:active { cursor: grabbing; }

@@ -6,8 +6,10 @@ import json
 import time
 import urllib.request
 import urllib.parse
+from backend.music_bridge import router as music_bridge_router
 
 app = FastAPI(title="VInnyy")
+app.include_router(music_bridge_router)
 
 # Serve frontend
 app.mount("/css", StaticFiles(directory="frontend/css"), name="css")
@@ -292,6 +294,34 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, username: str):
                     "server_time": server_time_ms(),
                     "client_send_time": data.get("client_send_time", 0),
                 })
+
+            # ── WebRTC Signaling Relay ──
+            elif t == "webrtc_offer":
+                await broadcast(room, {
+                    "type": "webrtc_offer",
+                    "from": username,
+                    "sdp": data.get("sdp"),
+                }, exclude=username)
+
+            elif t == "webrtc_answer":
+                await broadcast(room, {
+                    "type": "webrtc_answer",
+                    "from": username,
+                    "sdp": data.get("sdp"),
+                }, exclude=username)
+
+            elif t == "webrtc_ice":
+                await broadcast(room, {
+                    "type": "webrtc_ice",
+                    "from": username,
+                    "candidate": data.get("candidate"),
+                }, exclude=username)
+
+            elif t == "webrtc_hangup":
+                await broadcast(room, {
+                    "type": "webrtc_hangup",
+                    "from": username,
+                }, exclude=username)
 
     except WebSocketDisconnect:
         room.connections.pop(username, None)

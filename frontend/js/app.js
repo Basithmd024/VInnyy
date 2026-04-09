@@ -43,6 +43,15 @@ const state = {
     lastSyncState: null,         // last received sync payload from server
     isSyncing: false,            // prevent recursive sync loops
     remoteActionTimeout: null,   // timeout for isRemoteAction flag
+
+    // ── Video Call State ──
+    videoCallActive: false,
+    localStream: null,
+    remoteStream: null,
+    peerConnection: null,
+    micMuted: false,
+    camOff: false,
+    vcSizeIndex: 0,
 };
 
 // ── DOM Cache ───────────────────────────────────────────
@@ -95,8 +104,34 @@ const el = {
     queueEmpty: $('#queue-empty'),
     queueBadge: $('#queue-badge'),
     playNextBtn: $('#play-next-btn'),
+    foldersPanel: $('#folders-panel'),
+    foldersList: $('#folders-list'),
+    foldersEmpty: $('#folders-empty'),
+    foldersSearch: $('#folders-search'),
+    playlistUrlInput: $('#playlist-url-input'),
+    importPlaylistBtn: $('#import-playlist-btn'),
     reactionsContainer: $('#reactions-container'),
     toastContainer: $('#toast-container'),
+    // Video Call
+    videocallBtn: $('#videocall-btn'),
+    videocallPanel: $('#videocall-panel'),
+    localVideo: $('#local-video'),
+    remoteVideo: $('#remote-video'),
+    remotePlaceholder: $('#remote-placeholder'),
+    videocallStatus: $('#videocall-status'),
+    vcToggleMic: $('#vc-toggle-mic'),
+    vcToggleCam: $('#vc-toggle-cam'),
+    vcHangup: $('#vc-hangup'),
+    vcMicIcon: $('#vc-mic-icon'),
+    vcCamIcon: $('#vc-cam-icon'),
+    vcDragHandle: $('#videocall-drag-handle'),
+    vcMinimize: $('#vc-minimize'),
+    vcMinimizeIcon: $('#vc-minimize-icon'),
+    vcTimer: $('#vc-timer'),
+    vcBody: $('#videocall-body'),
+    vcResizeHandle: $('#vc-resize-handle'),
+    vcSizeToggle: $('#vc-size-toggle'),
+    vcSizeIcon: $('#vc-size-icon'),
 };
 
 // ── Initialize ──────────────────────────────────────────
@@ -123,6 +158,19 @@ function bindEvents() {
         else sendTyping();
     });
     el.videoUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadVideoFromInput(); });
+    
+    el.importPlaylistBtn.addEventListener('click', importPlaylist);
+    el.playlistUrlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') importPlaylist(); });
+
+    // Video call
+    el.videocallBtn.addEventListener('click', toggleVideoCall);
+    el.vcToggleMic.addEventListener('click', toggleMic);
+    el.vcToggleCam.addEventListener('click', toggleCam);
+    el.vcHangup.addEventListener('click', endVideoCall);
+    el.vcMinimize.addEventListener('click', toggleMinimize);
+    if (el.vcSizeToggle) el.vcSizeToggle.addEventListener('click', cycleVideoSize);
+    initDragPanel();
+    initResizePanel();
 
     // Tab buttons
     $$('.tab-btn').forEach(btn => {
@@ -233,6 +281,8 @@ function enterRoom() {
 }
 
 function leaveRoom() {
+    // Stop video call
+    if (state.videoCallActive) cleanupVideoCall();
     // Stop sync engine
     stopSyncEngine();
     // Stop background playback systems
@@ -637,6 +687,20 @@ function handleWSMessage(data) {
 
         case 'sync_response':
             handleSyncResponse(data);
+            break;
+
+        // ── WebRTC Signaling ──
+        case 'webrtc_offer':
+            handleWebRTCOffer(data);
+            break;
+        case 'webrtc_answer':
+            handleWebRTCAnswer(data);
+            break;
+        case 'webrtc_ice':
+            handleWebRTCIce(data);
+            break;
+        case 'webrtc_hangup':
+            handleRemoteHangup(data);
             break;
     }
 }
@@ -1296,7 +1360,170 @@ function switchTab(tab) {
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
     el.chatPanel.style.display = tab === 'chat' ? 'flex' : 'none';
     el.queuePanel.style.display = tab === 'queue' ? 'flex' : 'none';
+    el.foldersPanel.style.display = tab === 'folders' ? 'flex' : 'none';
+    if (tab === 'folders') {
+        loadFolders();
+    }
 }
+
+// ── Folders ──────────────────────────────────────────────
+async function importPlaylist() {
+    const url = el.playlistUrlInput.value.trim();
+    if (!url) return;
+    if (!state.username) { showToast('Please join a room first', 'info'); return; }
+    
+    el.importPlaylistBtn.disabled = true;
+    el.importPlaylistBtn.innerHTML = '<span class="search-spinner" style="display:inline-block;width:12px;height:12px;margin:0;border-top-color:#fff;"></span>';
+    
+    const isYouTube = url.includes('youtube.com/') && url.includes('list=');
+    const endpoint = isYouTube ? '/api/music/youtube/import' : '/api/music/spotify/import';
+    const folderName = isYouTube ? "YouTube Import" : "Spotify Import";
+
+    try {
+        const payload = {
+            username: state.username,
+            playlist: url,
+            folder_name: folderName,
+            room_id: state.roomId,
+            add_to_shared: true
+        };
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || 'Import failed');
+        }
+        showToast('Playlist imported successfully!', 'success');
+        el.playlistUrlInput.value = '';
+        loadFolders();
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        el.importPlaylistBtn.disabled = false;
+        el.importPlaylistBtn.textContent = 'Import';
+    }
+}
+
+async function loadFolders() {
+    el.foldersList.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Loading folders...</div>';
+    try {
+        const res = await fetch(`/api/music/folders/${state.username}`);
+        const data = await res.json();
+        
+        if (!data.folders || data.folders.length === 0) {
+            el.foldersList.innerHTML = `<div class="folders-empty"><span>📁</span><p>No folders yet</p><p class="folders-hint">Import Spotify or YouTube playlists to create folders</p></div>`;
+            return;
+        }
+
+        el.foldersList.innerHTML = '';
+        data.folders.forEach(folder => {
+            const div = document.createElement('div');
+            div.className = 'folder-item glass';
+            div.innerHTML = `
+                <div class="folder-info">
+                    <div class="folder-name">📁 ${escapeHtml(folder.folder_name)}</div>
+                    <div class="folder-count">${folder.count} song${folder.count !== 1 ? 's' : ''}</div>
+                </div>
+                <button class="folder-queue-btn" data-folder="${escapeHtml(folder.folder_name)}" title="Queue all">+ Queue</button>
+            `;
+            
+            div.querySelector('.folder-queue-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                queueFolder(folder.folder_name);
+            });
+            
+            div.addEventListener('click', () => viewFolderSongs(folder.folder_name));
+            el.foldersList.appendChild(div);
+        });
+    } catch (err) {
+        el.foldersList.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Error loading folders</div>';
+        showToast('Failed to load folders', 'info');
+    }
+}
+
+async function viewFolderSongs(folderName) {
+    try {
+        const res = await fetch(`/api/music/folders/${state.username}/${encodeURIComponent(folderName)}`);
+        const data = await res.json();
+        
+        if (!data.songs || data.songs.length === 0) {
+            showToast('Folder is empty', 'info');
+            return;
+        }
+
+        // Show songs in a toast-like panel or modal (simple approach: list in foldersList)
+        el.foldersList.innerHTML = `
+            <div style="margin-bottom:10px;">
+                <button class="btn-ghost" style="width:100%; margin-bottom:10px;" onclick="loadFolders()">← Back to Folders</button>
+            </div>
+        `;
+        
+        const heading = document.createElement('div');
+        heading.innerHTML = `<div style="color:var(--text-secondary); font-size:0.9rem; margin:10px 0; font-weight:600;">📁 ${escapeHtml(folderName)}</div>`;
+        el.foldersList.appendChild(heading);
+
+        data.songs.forEach(song => {
+            const div = document.createElement('div');
+            div.className = 'song-preview glass';
+            div.innerHTML = `
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:500; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(song.title)}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(song.artist)}</div>
+                </div>
+                <button class="folder-song-queue-btn" data-vid="${song.youtube_video_id}" data-title="${escapeHtml(song.title)}" style="padding:4px 8px; font-size:0.75rem;">+ Q</button>
+            `;
+            
+            div.querySelector('.folder-song-queue-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const vid = e.target.dataset.vid;
+                const title = e.target.dataset.title;
+                wsSend({ type: 'add_queue', video_id: vid, title: title, thumbnail: `https://img.youtube.com/vi/${vid}/mqdefault.jpg` });
+                showToast(`Added to queue`, 'success');
+            });
+            
+            el.foldersList.appendChild(div);
+        });
+    } catch (err) {
+        showToast('Failed to load folder songs', 'info');
+    }
+}
+
+async function queueFolder(folderName) {
+    try {
+        const res = await fetch(`/api/music/queue/load-folder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: state.username,
+                folder_name: folderName,
+                room_id: state.roomId
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.songs) {
+            // Send each song to queue via WebSocket
+            data.songs.forEach(song => {
+                wsSend({ 
+                    type: 'add_queue', 
+                    video_id: song.youtube_video_id, 
+                    title: song.title, 
+                    thumbnail: `https://img.youtube.com/vi/${song.youtube_video_id}/mqdefault.jpg` 
+                });
+            });
+            showToast(`Queued ${data.count} songs from ${folderName}`, 'success');
+        } else {
+            showToast('Failed to queue folder', 'info');
+        }
+    } catch (err) {
+        showToast('Error queuing folder', 'info');
+    }
+}
+
 
 // ── Reactions ───────────────────────────────────────────
 function sendReaction(emoji) {
@@ -1397,4 +1624,444 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ██  VIDEO CALL — WebRTC Peer-to-Peer                    ██
+// ═══════════════════════════════════════════════════════════
+
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+    ]
+};
+
+function toggleVideoCall() {
+    if (state.videoCallActive) {
+        endVideoCall();
+    } else {
+        startVideoCall();
+    }
+}
+
+async function startVideoCall() {
+    try {
+        // Get local camera + mic
+        state.localStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            audio: true,
+        });
+
+        // Show local video
+        el.localVideo.srcObject = state.localStream;
+        el.videocallPanel.style.display = 'block';
+        el.videocallBtn.classList.add('active');
+        state.videoCallActive = true;
+        state.micMuted = false;
+        state.camOff = false;
+        el.vcToggleMic.classList.remove('muted');
+        el.vcToggleCam.classList.remove('muted');
+        el.vcMicIcon.textContent = '🎤';
+        el.vcCamIcon.textContent = '📷';
+
+        // Show waiting state
+        el.remotePlaceholder.style.display = 'flex';
+        updateVCStatus('Connecting...', false);
+
+        // Create peer connection
+        createPeerConnection();
+
+        // Create and send offer
+        const offer = await state.peerConnection.createOffer();
+        await state.peerConnection.setLocalDescription(offer);
+        wsSend({ type: 'webrtc_offer', sdp: state.peerConnection.localDescription });
+
+        showToast('Video call started!', 'success');
+        startCallTimer();
+        addSystemChat(`${state.username} started a video call 📹`);
+
+    } catch (err) {
+        console.error('[VC] Failed to start:', err);
+        showToast('Camera access denied or unavailable', 'info');
+        cleanupVideoCall();
+    }
+}
+
+function createPeerConnection() {
+    state.peerConnection = new RTCPeerConnection(RTC_CONFIG);
+
+    // Add local tracks to connection
+    if (state.localStream) {
+        state.localStream.getTracks().forEach(track => {
+            state.peerConnection.addTrack(track, state.localStream);
+        });
+    }
+
+    // Handle incoming remote tracks
+    state.peerConnection.ontrack = (event) => {
+        state.remoteStream = event.streams[0];
+        el.remoteVideo.srcObject = state.remoteStream;
+        el.remotePlaceholder.style.display = 'none';
+        updateVCStatus('Connected', true);
+    };
+
+    // Handle ICE candidates
+    state.peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            wsSend({ type: 'webrtc_ice', candidate: event.candidate });
+        }
+    };
+
+    // Connection state changes
+    state.peerConnection.onconnectionstatechange = () => {
+        const cs = state.peerConnection.connectionState;
+        if (cs === 'connected') {
+            updateVCStatus('Connected', true);
+        } else if (cs === 'disconnected' || cs === 'failed') {
+            updateVCStatus('Disconnected', false);
+        }
+    };
+
+    state.peerConnection.oniceconnectionstatechange = () => {
+        const ics = state.peerConnection.iceConnectionState;
+        if (ics === 'disconnected' || ics === 'failed' || ics === 'closed') {
+            updateVCStatus('Disconnected', false);
+        }
+    };
+}
+
+async function handleWebRTCOffer(data) {
+    // Someone is calling us — auto-answer
+    if (!state.videoCallActive) {
+        try {
+            state.localStream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                audio: true,
+            });
+            el.localVideo.srcObject = state.localStream;
+            el.videocallPanel.style.display = 'block';
+            el.videocallBtn.classList.add('active');
+            state.videoCallActive = true;
+            state.micMuted = false;
+            state.camOff = false;
+            el.vcToggleMic.classList.remove('muted');
+            el.vcToggleCam.classList.remove('muted');
+            el.vcMicIcon.textContent = '🎤';
+            el.vcCamIcon.textContent = '📷';
+            el.remotePlaceholder.style.display = 'flex';
+            updateVCStatus('Connecting...', false);
+        } catch (err) {
+            console.error('[VC] Failed to get media for answer:', err);
+            showToast('Camera access denied', 'info');
+            return;
+        }
+        showToast(`${data.from} started a video call! 📹`, 'success');
+    }
+
+    createPeerConnection();
+
+    await state.peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await state.peerConnection.createAnswer();
+    await state.peerConnection.setLocalDescription(answer);
+    wsSend({ type: 'webrtc_answer', sdp: state.peerConnection.localDescription });
+}
+
+async function handleWebRTCAnswer(data) {
+    if (state.peerConnection && state.peerConnection.signalingState !== 'stable') {
+        await state.peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    }
+}
+
+async function handleWebRTCIce(data) {
+    if (state.peerConnection && data.candidate) {
+        try {
+            await state.peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } catch (e) {
+            console.warn('[VC] ICE candidate error:', e);
+        }
+    }
+}
+
+function handleRemoteHangup(data) {
+    showToast(`${data.from} ended the video call`, 'info');
+    cleanupVideoCall();
+}
+
+function endVideoCall() {
+    wsSend({ type: 'webrtc_hangup' });
+    cleanupVideoCall();
+    showToast('Video call ended', 'info');
+}
+
+function cleanupVideoCall() {
+    // Close peer connection
+    if (state.peerConnection) {
+        state.peerConnection.close();
+        state.peerConnection = null;
+    }
+
+    // Stop local media tracks
+    if (state.localStream) {
+        state.localStream.getTracks().forEach(track => track.stop());
+        state.localStream = null;
+    }
+
+    // Clear video elements
+    el.localVideo.srcObject = null;
+    el.remoteVideo.srcObject = null;
+    state.remoteStream = null;
+
+    // Animate panel out
+    if (el.videocallPanel.style.display !== 'none') {
+        el.videocallPanel.classList.add('closing');
+        setTimeout(() => {
+            el.videocallPanel.style.display = 'none';
+            el.videocallPanel.classList.remove('closing');
+        }, 300);
+    }
+
+    // Reset UI
+    el.videocallBtn.classList.remove('active');
+    state.videoCallActive = false;
+    state.micMuted = false;
+    state.camOff = false;
+    el.remotePlaceholder.style.display = 'flex';
+    updateVCStatus('Connecting...', false);
+    stopCallTimer();
+    // Reset minimized state
+    el.videocallPanel.classList.remove('minimized');
+    el.vcBody.style.display = 'block';
+    el.vcMinimizeIcon.textContent = '─';
+    // Reset size presets + drag position
+    resetVideoSize();
+    el.videocallPanel.style.left = '';
+    el.videocallPanel.style.right = '';
+    el.videocallPanel.style.top = '';
+    el.videocallPanel.style.bottom = '';
+}
+
+// ── Mic / Cam Controls ──
+function toggleMic() {
+    if (!state.localStream) return;
+    state.micMuted = !state.micMuted;
+    state.localStream.getAudioTracks().forEach(t => t.enabled = !state.micMuted);
+    el.vcToggleMic.classList.toggle('muted', state.micMuted);
+    el.vcMicIcon.textContent = state.micMuted ? '🔇' : '🎤';
+}
+
+function toggleCam() {
+    if (!state.localStream) return;
+    state.camOff = !state.camOff;
+    state.localStream.getVideoTracks().forEach(t => t.enabled = !state.camOff);
+    el.vcToggleCam.classList.toggle('muted', state.camOff);
+    el.vcCamIcon.textContent = state.camOff ? '🚫' : '📷';
+}
+
+function updateVCStatus(text, connected) {
+    const statusEl = el.videocallStatus;
+    statusEl.classList.toggle('connected', connected);
+    statusEl.querySelector('.vc-status-text').textContent = text;
+}
+
+// ── Draggable Panel with Snap-to-Edge + Boundary Clamping ──
+function initDragPanel() {
+    const panel = el.videocallPanel;
+    const handle = el.vcDragHandle;
+    let isDragging = false, startX, startY, startLeft, startTop;
+    const EDGE_SNAP = 20; // px threshold for snapping to edges
+    const MARGIN = 12;    // minimum margin from viewport edges
+
+    function clampPosition(left, top) {
+        const pw = panel.offsetWidth;
+        const ph = panel.offsetHeight;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        left = Math.max(MARGIN, Math.min(left, vw - pw - MARGIN));
+        top = Math.max(MARGIN, Math.min(top, vh - ph - MARGIN));
+        return { left, top };
+    }
+
+    function snapToEdge(left, top) {
+        const pw = panel.offsetWidth;
+        const ph = panel.offsetHeight;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        // Snap X
+        if (left < EDGE_SNAP + MARGIN) left = MARGIN;
+        else if (left > vw - pw - EDGE_SNAP - MARGIN) left = vw - pw - MARGIN;
+        // Snap Y
+        if (top < EDGE_SNAP + MARGIN) top = MARGIN;
+        else if (top > vh - ph - EDGE_SNAP - MARGIN) top = vh - ph - MARGIN;
+        return { left, top };
+    }
+
+    function applyPosition(left, top, animate = false) {
+        const pos = snapToEdge(...Object.values(clampPosition(left, top)));
+        panel.style.transition = animate ? '0.35s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
+        panel.style.left = pos.left + 'px';
+        panel.style.top = pos.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    }
+
+    // Mouse
+    handle.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.vc-minimize-btn')) return;
+        isDragging = true;
+        const rect = panel.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY;
+        startLeft = rect.left; startTop = rect.top;
+        panel.style.transition = 'none';
+        panel.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const pos = clampPosition(startLeft + dx, startTop + dy);
+        panel.style.left = pos.left + 'px';
+        panel.style.top = pos.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            panel.style.cursor = '';
+            // Snap to nearest edge with animation
+            const rect = panel.getBoundingClientRect();
+            applyPosition(rect.left, rect.top, true);
+        }
+    });
+
+    // Touch
+    handle.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.vc-minimize-btn')) return;
+        isDragging = true;
+        const touch = e.touches[0];
+        const rect = panel.getBoundingClientRect();
+        startX = touch.clientX; startY = touch.clientY;
+        startLeft = rect.left; startTop = rect.top;
+        panel.style.transition = 'none';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        const pos = clampPosition(startLeft + dx, startTop + dy);
+        panel.style.left = pos.left + 'px';
+        panel.style.top = pos.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        if (isDragging) {
+            isDragging = false;
+            const rect = panel.getBoundingClientRect();
+            applyPosition(rect.left, rect.top, true);
+        }
+    });
+
+    // Double-click header to minimize
+    handle.addEventListener('dblclick', (e) => {
+        if (!e.target.closest('.vc-minimize-btn')) toggleMinimize();
+    });
+}
+
+// ── Resizable Panel ──
+function initResizePanel() {
+    const panel = el.videocallPanel;
+    const resizeHandle = el.vcResizeHandle;
+    let isResizing = false, startW, startH, startX, startY;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startW = panel.offsetWidth;
+        startH = panel.offsetHeight;
+        startX = e.clientX; startY = e.clientY;
+        panel.style.transition = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const newW = Math.max(240, Math.min(600, startW + (e.clientX - startX)));
+        const newH = Math.max(200, Math.min(500, startH + (e.clientY - startY)));
+        panel.style.width = newW + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            panel.style.transition = '';
+        }
+    });
+}
+
+// ── Minimize / Expand Toggle ──
+function toggleMinimize() {
+    const panel = el.videocallPanel;
+    const body = el.vcBody;
+    const isMinimized = panel.classList.toggle('minimized');
+    body.style.display = isMinimized ? 'none' : 'block';
+    el.vcMinimizeIcon.textContent = isMinimized ? '□' : '─';
+    el.vcMinimize.title = isMinimized ? 'Expand' : 'Minimize';
+}
+
+// ── Video Size Presets (mobile) ──
+const VC_SIZES = ['vc-size-small', 'vc-size-medium', 'vc-size-large', 'vc-size-full'];
+const VC_SIZE_LABELS = ['S', 'M', 'L', '⛶'];
+
+function cycleVideoSize() {
+    const panel = el.videocallPanel;
+    // Remove current size class
+    VC_SIZES.forEach(cls => panel.classList.remove(cls));
+    // Advance to next
+    state.vcSizeIndex = (state.vcSizeIndex + 1) % VC_SIZES.length;
+    panel.classList.add(VC_SIZES[state.vcSizeIndex]);
+    el.vcSizeIcon.textContent = VC_SIZE_LABELS[state.vcSizeIndex];
+    // Reset manual drag position when switching to full
+    if (VC_SIZES[state.vcSizeIndex] === 'vc-size-full') {
+        panel.style.left = '';
+        panel.style.right = '12px';
+        panel.style.top = '';
+        panel.style.bottom = '12px';
+    }
+}
+
+function resetVideoSize() {
+    const panel = el.videocallPanel;
+    VC_SIZES.forEach(cls => panel.classList.remove(cls));
+    state.vcSizeIndex = 0;
+    if (el.vcSizeIcon) el.vcSizeIcon.textContent = 'S';
+}
+
+// ── Call Timer ──
+let vcTimerInterval = null;
+let vcCallStartTime = 0;
+
+function startCallTimer() {
+    vcCallStartTime = Date.now();
+    el.vcTimer.textContent = '00:00';
+    vcTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - vcCallStartTime) / 1000);
+        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
+        el.vcTimer.textContent = `${mins}:${secs}`;
+    }, 1000);
+}
+
+function stopCallTimer() {
+    if (vcTimerInterval) {
+        clearInterval(vcTimerInterval);
+        vcTimerInterval = null;
+    }
+    el.vcTimer.textContent = '00:00';
 }

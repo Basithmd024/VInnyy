@@ -171,6 +171,9 @@
                         <span class="online-dot"></span>
                         <span class="online-count">1</span>
                     </div>
+                    <button id="videocall-btn" class="btn-videocall" title="Start Video Call">
+                        <span class="videocall-icon">📹</span>
+                    </button>
                     <button id="leave-btn" class="btn-ghost">Leave</button>
                 </div>
             </header>
@@ -254,6 +257,7 @@
                         <button class="tab-btn active" data-tab="chat">💬 Chat</button>
                         <button class="tab-btn" data-tab="queue">📋 Queue <span class="queue-badge" id="queue-badge"
                                 style="display:none;">0</span></button>
+                        <button class="tab-btn" data-tab="folders">📁 Folders</button>
                     </div>
 
                     <!-- Chat Panel -->
@@ -287,8 +291,70 @@
                             ⏭ Play Next
                         </button>
                     </div>
+
+                    <!-- Folders Panel -->
+                    <div class="folders-area" id="folders-panel" style="display:none;">
+                        <div class="folders-header">
+                            <input id="folders-search" class="input" type="text" placeholder="Search folders..." 
+                                autocomplete="off" style="flex:1; margin-bottom:10px;">
+                            <div class="playlist-import" style="display: flex; gap: 8px;">
+                                <input id="playlist-url-input" class="input" type="text" placeholder="Paste Spotify or YouTube Playlist..." autocomplete="off">
+                                <button id="import-playlist-btn" class="btn-primary btn-compact" style="white-space: nowrap;">Import</button>
+                            </div>
+                        </div>
+                        <div class="folders-list" id="folders-list">
+                            <div class="folders-empty" id="folders-empty">
+                                <span>📁</span>
+                                <p>No folders yet</p>
+                                <p class="folders-hint">Import Spotify or YouTube playlists to create folders</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
+        </div>
+
+        <!-- ═══ Floating Video Call Panel ═══ -->
+        <div id="videocall-panel" class="videocall-panel" style="display:none;">
+            <div class="videocall-header" id="videocall-drag-handle">
+                <div class="vc-header-left">
+                    <span class="videocall-title">📹 Live</span>
+                    <span class="vc-timer" id="vc-timer">00:00</span>
+                </div>
+                <div class="vc-header-right">
+                    <div class="videocall-status" id="videocall-status">
+                        <span class="vc-status-dot"></span>
+                        <span class="vc-status-text">Connecting...</span>
+                    </div>
+                    <button id="vc-size-toggle" class="vc-size-btn" title="Change Size">
+                        <span id="vc-size-icon">S</span>
+                    </button>
+                    <button id="vc-minimize" class="vc-minimize-btn" title="Minimize">
+                        <span id="vc-minimize-icon">─</span>
+                    </button>
+                </div>
+            </div>
+            <div class="videocall-body" id="videocall-body">
+                <div class="videocall-videos">
+                    <video id="remote-video" class="remote-video" autoplay playsinline></video>
+                    <div class="remote-placeholder" id="remote-placeholder">
+                        <span>Waiting for partner...</span>
+                    </div>
+                    <video id="local-video" class="local-video" autoplay playsinline muted></video>
+                </div>
+                <div class="videocall-controls">
+                    <button id="vc-toggle-mic" class="vc-control-btn" title="Toggle Microphone">
+                        <span id="vc-mic-icon">🎤</span>
+                    </button>
+                    <button id="vc-toggle-cam" class="vc-control-btn" title="Toggle Camera">
+                        <span id="vc-cam-icon">📷</span>
+                    </button>
+                    <button id="vc-hangup" class="vc-control-btn vc-hangup-btn" title="End Call">
+                        <span>✕</span>
+                    </button>
+                </div>
+            </div>
+            <div class="vc-resize-handle" id="vc-resize-handle"></div>
         </div>
 
         <!-- ═══ Floating Reactions Container ═══ -->
